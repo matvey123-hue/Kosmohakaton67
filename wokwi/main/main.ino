@@ -21,7 +21,7 @@ const int PIN_TFT_DC   = 4;
 const int PIN_SPI_SCK  = 18;  // MISO экрану не нужен — GPIO19 отдан RGB (см. setup)
 const int PIN_SPI_MOSI = 23;
 // RST экрана в распиновке не указан: в схеме висит на 3V3, здесь передаём -1.
-const int PIN_BUZZER   = 25;  // зуммер (активный)
+const int PIN_BUZZER   = 25;  // зуммер (пассивный: тон задаёт tone())
 const int PIN_RGB_R    = 26;  // RGB, общий катод: HIGH = горит
 const int PIN_RGB_G    = 27;
 const int PIN_RGB_B    = 14;
@@ -184,6 +184,9 @@ void updateRgb(AlarmLevel base, uint32_t nowMs) {
 // ---- Пульт: один экран (спека, раздел 2) ----
 // Строка на подсистему (уровень + ключевое значение), общий уровень базы,
 // счётчик ударов, состояние реле и заслонок, сообщения. Обновление ≥ 1 раза/с.
+// Каждая строка перерисовывается, только когда изменились её текст или цвет:
+// шрифт прозрачный, поэтому строку перед выводом стираем, а стирание всего экрана
+// 4 раза/с давало бы мерцание.
 
 const uint16_t COL_BLACK  = 0x0000;
 const uint16_t COL_WHITE  = 0xFFFF;
@@ -202,15 +205,45 @@ uint16_t levelColor(AlarmLevel lvl) {
   return COL_WHITE;
 }
 
-void drawSubsystemLine(const char* tag, AlarmLevel lvl, const char* text, int y) {
-  // Цветная метка уровня, дальше строка подсистемы.
-  tft.fillRect(4, y - 11, 12, 12, levelColor(lvl));
-  u8g.setForegroundColor(COL_WHITE);
-  u8g.setCursor(22, y);
-  u8g.print(tag);
-  u8g.print(": ");
+// Строка экрана шрифтом 6x12: что на ней сейчас нарисовано.
+struct ScreenRow {
+  int      y;          // базовая линия текста
+  char     text[64];
+  uint16_t color;      // цвет текста
+  uint16_t mark;       // цвет метки уровня слева, COL_BLACK — без метки
+};
+
+ScreenRow rows[] = {
+  { 62 }, { 80 }, { 98 }, { 116 },  // подсистемы 1–4
+  { 136 },                          // реле и заслонки
+  { 160 }, { 178 }, { 196 },        // сообщения подсистем
+  { 232 },                          // удары и звук
+};
+const int ROW_SUBS = 0, ROW_STATE = 4, ROW_MSG = 5, ROW_MSG_COUNT = 3, ROW_BOTTOM = 8;
+
+void drawRow(ScreenRow& row, const char* text, uint16_t color, uint16_t mark = COL_BLACK) {
+  if (strcmp(row.text, text) == 0 && row.color == color && row.mark == mark) return;
+  snprintf(row.text, sizeof row.text, "%s", text);
+  row.color = color;
+  row.mark  = mark;
+  tft.fillRect(0, row.y - 12, 320, 16, COL_BLACK);
+  int x = 4;
+  if (mark != COL_BLACK) {
+    tft.fillRect(4, row.y - 11, 12, 12, mark);
+    x = 22;
+  }
+  u8g.setForegroundColor(color);
+  u8g.setCursor(x, row.y);
   u8g.print(text);
 }
+
+void drawSubsystemRow(int i, const char* tag, AlarmLevel lvl, const char* value) {
+  char text[64];
+  snprintf(text, sizeof text, "%s: %s", tag, value);
+  drawRow(rows[ROW_SUBS + i], text, COL_WHITE, levelColor(lvl));
+}
+
+const char* doorText(bool open) { return open ? "О" : "З"; }
 
 void updateScreen(AlarmLevel base, uint32_t nowMs) {
   static uint32_t lastDrawMs = 0 - SCREEN_EVERY_MS;
@@ -219,12 +252,17 @@ void updateScreen(AlarmLevel base, uint32_t nowMs) {
 
   // Крупная плашка общего уровня. В АВАРИИ мигает (0,5 с) — как RGB.
   bool blinkOff = base == LVL_ALARM && (nowMs / ALARM_BLINK_MS) % 2 != 0;
-  tft.fillRect(0, 0, 320, 44, blinkOff ? COL_BLACK : levelColor(base));
-  u8g.setFont(u8g2_font_10x20_t_cyrillic);
-  u8g.setForegroundColor(blinkOff ? levelColor(base) : COL_BLACK);
-  u8g.setCursor(8, 30);
-  u8g.print("БАЗА: ");
-  u8g.print(levelName(base));
+  static int bannerDrawn = -1;  // уровень * 2 + фаза мигания
+  int banner = base * 2 + (blinkOff ? 1 : 0);
+  if (banner != bannerDrawn) {
+    bannerDrawn = banner;
+    tft.fillRect(0, 0, 320, 44, blinkOff ? COL_BLACK : levelColor(base));
+    u8g.setFont(u8g2_font_10x20_t_cyrillic);
+    u8g.setForegroundColor(blinkOff ? levelColor(base) : COL_BLACK);
+    u8g.setCursor(8, 30);
+    u8g.print("БАЗА: ");
+    u8g.print(levelName(base));
+  }
 
   u8g.setFont(u8g2_font_6x12_t_cyrillic);
 
@@ -237,59 +275,52 @@ void updateScreen(AlarmLevel base, uint32_t nowMs) {
     snprintf(line, sizeof line, "обш %.1fC", (double)life.hullC());
   else
     snprintf(line, sizeof line, "нет данных");
-  drawSubsystemLine("1 ЖИЗНЬ", life.level(), line, 62);
+  drawSubsystemRow(0, "1 ЖИЗНЬ", life.level(), line);
 
   if (fire.hasData()) {
     if (isnan(fire.tempC())) snprintf(line, sizeof line, "дым %d", fire.smokeAdc());
     else snprintf(line, sizeof line, "дым %d t %.1fC", fire.smokeAdc(), (double)fire.tempC());
   } else snprintf(line, sizeof line, "нет данных");
-  drawSubsystemLine("2 ПОЖАР", fire.level(), line, 80);
+  drawSubsystemRow(1, "2 ПОЖАР", fire.level(), line);
 
+  // Двери: О — открыта, З — закрыта (внешняя/внутренняя).
   if (airlock.hasPressure())
-    snprintf(line, sizeof line, "%.1f кПа дв %c/%c",
-             (double)airlock.pressureKpa(),
-             airlock.outerOpen() ? 'O' : 'З', airlock.innerOpen() ? 'O' : 'З');
+    snprintf(line, sizeof line, "%.1f кПа дв %s/%s", (double)airlock.pressureKpa(),
+             doorText(airlock.outerOpen()), doorText(airlock.innerOpen()));
   else
-    snprintf(line, sizeof line, "дв %c/%c",
-             airlock.outerOpen() ? 'O' : 'З', airlock.innerOpen() ? 'O' : 'З');
-  drawSubsystemLine("3 ШЛЮЗ", airlock.level(), line, 98);
+    snprintf(line, sizeof line, "дв %s/%s",
+             doorText(airlock.outerOpen()), doorText(airlock.innerOpen()));
+  drawSubsystemRow(2, "3 ШЛЮЗ", airlock.level(), line);
 
   if (meteor.hasData())
     snprintf(line, sizeof line, "удары %lu тек %.2fg",
              (unsigned long)meteor.totalImpacts(), (double)meteor.lastG());
   else
     snprintf(line, sizeof line, "нет данных");
-  drawSubsystemLine("4 МЕТЕОР", meteor.level(), line, 116);
+  drawSubsystemRow(3, "4 МЕТЕОР", meteor.level(), line);
 
   // Состояние реле и заслонок.
   snprintf(line, sizeof line, "ОБОГР %s ЗАСЛ %d ЗАМОК %s ОТСЕК %s",
            life.heaterOn() ? "ВКЛ" : "выкл", life.damperDeg(),
            airlock.lockDeg() == AIRLOCK_LOCK_CLOSED_DEG ? "ЗАКР" : "откр",
            fire.bayPowerOn() ? "ВКЛ" : "ВЫКЛ");
-  u8g.setForegroundColor(COL_CYAN);
-  u8g.setCursor(4, 136);
-  u8g.print(line);
+  drawRow(rows[ROW_STATE], line, COL_CYAN);
 
-  // Сообщения подсистем — до трёх строк.
-  tft.fillRect(0, 142, 320, 98, COL_BLACK);
-  int y = 160;
+  // Сообщения подсистем — до трёх строк, лишние строки стираются.
   const Subsystem* subs[4] = { &life, &fire, &airlock, &meteor };
-  for (int i = 0; i < 4 && y <= 200; i++) {
+  int shown = 0;
+  for (int i = 0; i < 4 && shown < ROW_MSG_COUNT; i++) {
     const char* msg = subs[i]->message();
     if (!msg) continue;
-    u8g.setForegroundColor(levelColor(subs[i]->level()));
-    u8g.setCursor(4, y);
-    u8g.print(msg);
-    y += 18;
+    drawRow(rows[ROW_MSG + shown], msg, levelColor(subs[i]->level()));
+    shown++;
   }
+  for (; shown < ROW_MSG_COUNT; shown++) drawRow(rows[ROW_MSG + shown], "", COL_BLACK);
+
   // Низ экрана: счётчик ударов и состояние звука.
-  u8g.setForegroundColor(COL_WHITE);
-  u8g.setCursor(4, 232);
-  u8g.print("Удары: ");
-  u8g.print((unsigned long)meteor.totalImpacts());
-  if (ackMuted) {
-    u8g.print("   ЗВУК ВЫКЛ");
-  }
+  snprintf(line, sizeof line, "Удары: %lu%s",
+           (unsigned long)meteor.totalImpacts(), ackMuted ? "   ЗВУК ВЫКЛ" : "");
+  drawRow(rows[ROW_BOTTOM], line, COL_WHITE);
 }
 
 void setup() {

@@ -7,5 +7,6 @@ Adafruit Unified Sensor
 DHT sensor library
 OneWire
 DallasTemperature
-ESP32ServoAdafruit BMP085 Library
+ESP32Servo
+Adafruit BMP085 Library
 Adafruit MPU6050
