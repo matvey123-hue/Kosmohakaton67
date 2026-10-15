@@ -11,6 +11,7 @@
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:920px;margin:0 auto;padding:32px 16px 64px}
 h1{font-size:26px;margin:0 0 4px}
+h3{font-size:15px;margin:18px 0 6px}
 h2{font-size:18px;margin:32px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .sub{color:var(--muted);margin:0 0 20px}
 table{width:100%;border-collapse:collapse;background:var(--card);font-size:14px}
@@ -122,16 +123,33 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 </table></div>
 
 <h2>8. Структура кода</h2>
-<p>Весь проект — одна папка <code>wokwi/main/</code>, без подпапок: онлайн-Wokwi принимает файлы проекта одним списком. Сборка локально: <code>arduino-cli compile -b esp32:esp32:esp32 --output-dir build .</code> из этой папки; <code>build/</code> в git не кладём.</p>
+<p>Весь проект — одна папка <code>wokwi/main/</code>, без подпапок: онлайн-Wokwi принимает файлы проекта одним списком. Сборка локально: <code>arduino-cli compile -b esp32:esp32:esp32 --output-dir build .</code> из этой папки.</p>
+
+<h3>Границы файлов</h3>
 <div class="wrap"><table>
-<tr><th>Файл</th><th>Что в нём</th><th>Чего в нём нет</th><th>Правит</th></tr>
-<tr><td><code>diagram.json</code></td><td>Схема: компоненты и провода. Пины строго по разделу 5.</td><td>—</td><td>Vova2020</td></tr>
-<tr><td><code>main.ino</code></td><td>Единственное место, которое знает схему: пины и параметры железа каждой подсистемы (структура <code>…Config</code>). Создаёт объекты подсистем, вызывает их <code>begin()</code>/<code>update()</code>. Общие части: пульт, уровень базы, звук, «Подтвердить», журнал, RGB-светодиод. Связи между подсистемами (№4 → №3).</td><td>Пороги и логика тревог подсистем.</td><td>Vova2020</td></tr>
-<tr><td><code>common.h</code></td><td>Общее для всех подсистем: интерфейс <code>Subsystem</code>, <code>AlarmLevel</code>, общие константы (выдержка 2 с), утилиты, нужные больше чем одной подсистеме.</td><td>Пины, что-либо одной подсистемы.</td><td>Vova2020, по согласованию</td></tr>
-<tr><td><code>N_имя.h/.cpp</code><br>(<code>1_life_support</code>, <code>2_fire</code>, <code>3_airlock</code>, <code>4_meteor</code>)</td><td>Один класс на подсистему. Пороги — константами в начале <code>.h</code>. Получает конфиг железа в конструкторе, сам читает свои датчики и управляет своими исполнителями. Наследует <code>Subsystem</code> из <code>common.h</code> и реализует его методы: <code>name()</code>, <code>begin()</code>, <code>update()</code>, <code>level()</code>, <code>alarmMask()</code>, <code>message()</code>, <code>valueText()</code>.</td><td>Номера пинов, экран, зуммер, кнопка «Подтвердить», строки журнала. Не подключает файлы других подсистем.</td><td>№1, №4 — Claude; №2, №3 — участник 2</td></tr>
-<tr><td><code>libraries.txt</code></td><td>Библиотеки для онлайн-Wokwi. Новая библиотека — сразу сюда; локально её ставим сами: <code>arduino-cli lib install "…"</code> (локальная сборка этот файл не читает).</td><td>—</td><td>кто добавил библиотеку</td></tr>
-<tr><td><code>wokwi.toml</code></td><td>Путь к прошивке для Wokwi в VS Code.</td><td>—</td><td>—</td></tr>
+<tr><th>Файл</th><th>Отвечает за</th><th>Подключает</th><th>Не содержит</th><th>Правит</th></tr>
+<tr><td><code>main.ino</code></td><td>Единственное место, которое знает схему: пины и параметры железа каждой подсистемы (структуры <code>…Config</code>). Создаёт объекты подсистем, вызывает их <code>begin()</code> и <code>update()</code>. Общее железо: шина I2C (<code>Wire.begin</code>), экран, зуммер, кнопка «Подтвердить», RGB-светодиод. Общие части: уровень базы, пульт, звук, журнал. Связи между подсистемами (№4 → №3).</td><td>файлы подсистем, библиотеки экрана</td><td>Пороги и логику тревог подсистем.</td><td>Vova2020</td></tr>
+<tr><td><code>common.h</code></td><td>То, что нужно нескольким подсистемам: <code>AlarmLevel</code> и <code>levelName()</code>, интерфейс <code>Subsystem</code>, общие константы (выдержка 2 с).</td><td>только стандартные заголовки C/C++</td><td>Пины, Arduino и библиотеки, что-либо одной подсистемы, журнал.</td><td>Vova2020, по согласованию</td></tr>
+<tr><td><code>1_life_support.h/.cpp</code></td><td>Класс <code>LifeSupport</code>: DHT22, DS18B20, реле обогрева, серво заслонки; пороги воздуха, влажности, обшивки; обогрев и заслонка.</td><td rowspan="4"><code>common.h</code> и библиотеки своих датчиков</td><td rowspan="4">Номера пинов, экран, зуммер, кнопку «Подтвердить», RGB, строки журнала, файлы других подсистем, <code>millis()</code> и <code>delay()</code>.</td><td>Claude</td></tr>
+<tr><td><code>2_fire.h/.cpp</code></td><td>Класс <code>FireSafety</code>: MQ2, NTC, реле питания отсека, кнопка «Сброс»; подтверждение пожара вторым датчиком, обесточивание отсека.</td><td>участник 2</td></tr>
+<tr><td><code>3_airlock.h/.cpp</code></td><td>Класс <code>Airlock</code>: две двери, BMP180, серво замка; давление и его падение, блокировка внутренней двери. Принимает сигнал удара — метод, который вызывает <code>main.ino</code>.</td><td>участник 2</td></tr>
+<tr><td><code>4_meteor.h/.cpp</code></td><td>Класс <code>MeteorShield</code>: MPU6050; удары, счётчик ударов. Отдаёт сигнал сильного удара — метод, который читает <code>main.ino</code>.</td><td>Claude</td></tr>
+<tr><td><code>diagram.json</code></td><td>Схема: компоненты и провода, пины строго по разделу 5.</td><td>—</td><td>—</td><td>Vova2020</td></tr>
+<tr><td><code>libraries.txt</code></td><td>Библиотеки для онлайн-Wokwi. Локальная сборка его не читает: новую библиотеку ставим сами <code>arduino-cli lib install "…"</code>.</td><td>—</td><td>Встроенные в ядро ESP32 (<code>SPI</code>, <code>Wire</code>, <code>SD</code>).</td><td>кто добавил библиотеку</td></tr>
+<tr><td><code>wokwi.toml</code></td><td>Путь к прошивке для Wokwi в VS Code.</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>build/</code></td><td>Собранная прошивка.</td><td>—</td><td>—</td><td>не в git</td></tr>
 </table></div>
+
+<h3>Правила для кода подсистем</h3>
+<ul>
+<li><b>Зависимости только вниз:</b> <code>main.ino</code> → файлы подсистем → <code>common.h</code>. Подсистемы не подключают друг друга и <code>main.ino</code>; <code>common.h</code> не знает про подсистемы.</li>
+<li><b>Контракт — интерфейс <code>Subsystem</code>:</b> <code>name()</code>, <code>begin()</code>, <code>update(nowMs)</code>, <code>level()</code>, <code>alarmMask()</code>, <code>message()</code>, <code>valueText()</code>. Сверх него класс может отдавать подробности для пульта (значения, уровни отдельных параметров).</li>
+<li><b>Железо приходит из <code>main.ino</code>:</b> пины и параметры (активный уровень реле, импульсы серво, тип датчика) — в конфиге конструктора. Пороги и логика остаются в классе: они не зависят от схемы.</li>
+<li><b>Время — только аргумент <code>update(nowMs)</code>.</b> Без <code>millis()</code> внутри и без <code>delay()</code> и ожиданий: <code>loop()</code> должен крутиться быстро, иначе мигание, звук и кнопка начнут запаздывать.</li>
+<li><b>Общие ресурсы запускает <code>main.ino</code>:</b> шину I2C (BMP180 и MPU6050 на 21/22) — до <code>begin()</code> подсистем; подсистема только пользуется шиной.</li>
+<li><b>Связь подсистем — через <code>main.ino</code>:</b> он читает сигнал одной подсистемы и передаёт другой (удар из №4 → ВНИМАНИЕ в №3 на 30 с).</li>
+<li><b>Serial:</b> строки журнала (<code>мм:сс | подсистема | уровень | значение</code>) пишет только <code>main.ino</code>. Подсистема может печатать свою диагностику (датчик не отвечает, сработал исполнитель) — одной строкой на событие, с префиксом <code>№N:</code>, перевод строки <code>\r\n</code> (терминал Wokwi в VS Code иначе рисует «лесенку»).</li>
+</ul>
 <p>Сменился пин — правим раздел 5, <code>diagram.json</code> и конфиг в <code>main.ino</code>; файлы подсистемы не трогаем. Нужен общий код в двух подсистемах — переносим его в <code>common.h</code>, а не копируем.</p>
 
 <h2>9. Открытые вопросы</h2>
