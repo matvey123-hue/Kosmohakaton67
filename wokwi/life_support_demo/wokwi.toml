@@ -1,0 +1,5 @@
+[wokwi]
+version = 1
+# Собирается build.bat (arduino-cli), результат в build/
+firmware = 'build/life_support_demo.ino.merged.bin'
+elf = 'build/life_support_demo.ino.elf'

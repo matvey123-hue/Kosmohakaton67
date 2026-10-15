@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "author": "Kosmohakaton67",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "board-ili9341-cap-touch", "id": "tft", "top": -120, "left": 260, "rotate": 90, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht", "top": -140, "left": -170, "attrs": { "temperature": "22", "humidity": "45" } },
+    { "type": "wokwi-resistor", "id": "rDht", "top": -40, "left": -110, "rotate": 90, "attrs": { "value": "4700" } },
+    { "type": "wokwi-ds18b20", "id": "ds", "top": -120, "left": -300, "attrs": { "temperature": "-10" } },
+    { "type": "wokwi-resistor", "id": "rDs", "top": -40, "left": -260, "rotate": 90, "attrs": { "value": "4700" } },
+    { "type": "wokwi-relay-module", "id": "relay", "top": 140, "left": -330, "attrs": {} },
+    { "type": "wokwi-led", "id": "ledHeat", "top": 120, "left": -420, "attrs": { "color": "orange", "label": "ОБОГРЕВ" } },
+    { "type": "wokwi-resistor", "id": "rLed", "top": 230, "left": -440, "attrs": { "value": "220" } },
+    { "type": "wokwi-servo", "id": "damper", "top": 260, "left": -250, "attrs": { "hornColor": "#3366cc" } },
+    { "type": "wokwi-buzzer", "id": "bz", "top": 220, "left": 310, "attrs": { "volume": "0.1" } },
+    { "type": "wokwi-pushbutton", "id": "btnAck", "top": 220, "left": 160, "attrs": { "color": "green", "label": "ПОДТВЕРДИТЬ" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+
+    [ "tft:VCC", "esp:3V3", "red", [] ],
+    [ "tft:GND", "esp:GND.2", "black", [] ],
+    [ "tft:CS", "esp:5", "orange", [] ],
+    [ "tft:RST", "esp:17", "purple", [] ],
+    [ "tft:D/C", "esp:16", "violet", [] ],
+    [ "tft:MOSI", "esp:23", "green", [] ],
+    [ "tft:SCK", "esp:18", "blue", [] ],
+    [ "tft:MISO", "esp:19", "gray", [] ],
+    [ "tft:LED", "esp:3V3", "red", [] ],
+
+    [ "dht:VCC", "esp:3V3", "red", [] ],
+    [ "dht:GND", "esp:GND.1", "black", [] ],
+    [ "dht:SDA", "esp:27", "green", [] ],
+    [ "rDht:1", "esp:3V3", "red", [] ],
+    [ "rDht:2", "dht:SDA", "green", [] ],
+
+    [ "ds:VCC", "esp:3V3", "red", [] ],
+    [ "ds:GND", "esp:GND.1", "black", [] ],
+    [ "ds:DQ", "esp:26", "yellow", [] ],
+    [ "rDs:1", "esp:3V3", "red", [] ],
+    [ "rDs:2", "ds:DQ", "yellow", [] ],
+
+    [ "relay:VCC", "esp:5V", "red", [] ],
+    [ "relay:GND", "esp:GND.1", "black", [] ],
+    [ "relay:IN", "esp:25", "orange", [] ],
+    [ "relay:COM", "esp:5V", "red", [] ],
+    [ "relay:NO", "rLed:2", "orange", [] ],
+    [ "rLed:1", "ledHeat:A", "orange", [] ],
+    [ "ledHeat:C", "esp:GND.1", "black", [] ],
+
+    [ "damper:V+", "esp:5V", "red", [] ],
+    [ "damper:GND", "esp:GND.1", "black", [] ],
+    [ "damper:PWM", "esp:32", "blue", [] ],
+
+    [ "bz:1", "esp:GND.2", "black", [] ],
+    [ "bz:2", "esp:13", "orange", [] ],
+
+    [ "btnAck:1.l", "esp:14", "green", [] ],
+    [ "btnAck:2.l", "esp:GND.2", "black", [] ]
+  ],
+  "dependencies": {}
+}

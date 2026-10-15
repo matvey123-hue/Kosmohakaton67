@@ -1,0 +1,4 @@
+# copied from firmware/ by build.bat
+life_support.h
+life_support.cpp
+alarm_level.h
