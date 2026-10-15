@@ -1,0 +1,12 @@
+# Wokwi Library List
+Adafruit BusIO
+Adafruit GFX Library
+Adafruit ILI9341
+U8g2_for_Adafruit_GFX
+Adafruit Unified Sensor
+DHT sensor library
+OneWire
+DallasTemperature
+ESP32Servo
+Adafruit BMP085 Library
+Adafruit MPU6050
