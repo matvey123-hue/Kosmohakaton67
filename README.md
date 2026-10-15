@@ -20,9 +20,21 @@ wokwi/main/          проект Wokwi целиком, без подпапок
   diagram.json       схема
   libraries.txt      библиотеки для онлайн-Wokwi
   wokwi.toml         путь к прошивке для Wokwi в VS Code
+tests/             юнит-тесты логики без железа (см. tests/README.md)
+tools/validate.py  проверка diagram.json против распиновки и main.ino
+BUILD_WOKWI.md     инструкция: как перенести проект на wokwi.com
 ```
 
 Границы файлов и правила для кода подсистем — спека, раздел 7.
+
+## Проверки без железа
+
+```sh
+python tools/validate.py   # схема: пины, конфликты, реле — ожидается OK
+```
+
+Юнит-тесты (g++): команда и список тестов — в `tests/README.md`.
+Ожидается `ALL TESTS PASSED` (11 тестов).
 
 ## Запуск локально
 

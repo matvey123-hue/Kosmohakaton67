@@ -1,0 +1,11 @@
+# Все тексты — LF, как в репозитории (core.autocrlf=true их выдаёт как CRLF на Windows).
+* text=auto eol=lf
+*.ino text eol=lf
+*.h text eol=lf
+*.cpp text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.py text eol=lf
