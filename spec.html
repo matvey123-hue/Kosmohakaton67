@@ -29,7 +29,7 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 <body>
 <main>
 <h1>Система мониторинга и аварийного оповещения лунной базы</h1>
-<p class="sub">Короткая спека проекта · Хакатон «CubeSat на STM32, ESP32 и Arduino» · версия 6 от 15.10.2026 · сдача 17.10.2026, 15:00 МСК</p>
+<p class="sub">Короткая спека проекта · Хакатон «CubeSat на STM32, ESP32 и Arduino» · версия 7 от 15.10.2026 · сдача 17.10.2026, 15:00 МСК</p>
 
 <h2>1. Цель и рамки</h2>
 <p>Сделать в симуляторе Wokwi систему мониторинга обитаемого модуля: датчики по подсистемам, три уровня тревоги, общий пульт, журнал событий и автоматические реакции. Кейс требует подсистему №1 и минимум три из №2–6; мы делаем №1, 2, 3, 4.</p>
@@ -66,37 +66,40 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 </table></div>
 <p>Кратковременный (&lt; 1 с) всплеск дыма или температуры в №2 не должен давать АВАРИЮ.</p>
 <h2>4. Распиновка ESP32</h2>
-<p class="sub">Версия от Vova2020, 15.10.2026. I2C общая: BMP180 (0x77) и MPU6050 (0x68) не конфликтуют по адресам.</p>
+<p class="sub">Версия от Vova2020, 15.10.2026; пины общей системы обновлены 15.10 в 17:50. <span class="bad">Новые пины общей системы пересекаются с №1 и №2</span>: в таблице «было → предложение», код в <code>main.ino</code> пока на старых пинах. I2C общая: BMP180 (0x77) и MPU6050 (0x68) не конфликтуют по адресам.</p>
 <div class="wrap"><table>
 <tr><th>Узел</th><th>Сигнал</th><th>GPIO</th><th>Примечание</th></tr>
-<tr><td rowspan="6">TFT ILI9341</td><td>CS</td><td>5</td><td rowspan="6">SPI. BL и VCC на 3V3</td></tr>
-<tr><td>DC</td><td>16</td></tr>
-<tr><td>RST</td><td>17</td></tr>
+<tr><td rowspan="5">TFT ILI9341</td><td>CS</td><td>5</td><td rowspan="5">SPI. BL и VCC на 3V3</td></tr>
+<tr><td>DC</td><td>4</td></tr>
 <tr><td>SCK</td><td>18</td></tr>
-<tr><td>MISO</td><td>19</td></tr>
 <tr><td>MOSI</td><td>23</td></tr>
-<tr><td rowspan="4">№1 Жизнеобеспечение</td><td>DHT22 DATA</td><td>27</td><td>pull-up 4,7 кОм</td></tr>
-<tr><td>DS18B20 DQ</td><td>26</td><td>pull-up 4,7 кОм</td></tr>
-<tr><td>Реле обогревателя</td><td>25</td><td>питание 5V</td></tr>
-<tr><td>Серво заслонки</td><td>32</td><td>питание 5V</td></tr>
+<tr><td>RST</td><td>—</td></tr>
+<tr><td rowspan="4">№1 Жизнеобеспечение</td><td>DHT22 DATA</td><td><span class="bad">27 → 16</span></td><td>pull-up 4,7 кОм; 27 теперь LED_GREEN</td></tr>
+<tr><td>DS18B20 DQ</td><td><span class="bad">26 → 17</span></td><td>pull-up 4,7 кОм; 26 теперь LED_RED</td></tr>
+<tr><td>Реле обогревателя</td><td><span class="bad">25 → 13</span></td><td>питание 5V; 25 теперь зуммер</td></tr>
+<tr><td>Серво заслонки</td><td><span class="bad">32 → 19</span></td><td>питание 5V; 32 теперь «Подтвердить»</td></tr>
 <tr><td rowspan="4">№3 Шлюз</td><td>Внешняя дверь</td><td>36</td><td>только вход, без внутренней подтяжки</td></tr>
 <tr><td>Внутренняя дверь</td><td>39</td><td>только вход, без внутренней подтяжки</td></tr>
 <tr><td>Серво замка</td><td>33</td><td>питание 5V</td></tr>
 <tr><td>BMP180 SDA / SCL</td><td>21 / 22</td><td>общая шина I2C</td></tr>
 <tr><td>№4 Метеориты</td><td>MPU6050 SDA / SCL</td><td>21 / 22</td><td>общая шина I2C</td></tr>
-<tr><td rowspan="6">№2 Пожар <span class="tag">предложение</span></td><td>MQ2 AOUT</td><td>34</td><td>ADC1, только вход</td></tr>
+<tr><td rowspan="4">№2 Пожар <span class="tag">предложение</span></td><td>MQ2 AOUT</td><td>34</td><td>ADC1, только вход</td></tr>
 <tr><td>NTC (делитель)</td><td>35</td><td>ADC1, только вход</td></tr>
 <tr><td>Реле питания отсека</td><td>15</td><td>питание 5V</td></tr>
-<tr><td>Кнопка «Сброс»</td><td>4</td><td>на GND, INPUT_PULLUP</td></tr>
-<tr><td>RGB-светодиод R</td><td>2</td><td>через резистор</td></tr>
-<tr><td>RGB-светодиод G</td><td>19</td><td>MISO дисплею не нужен</td></tr>
-<tr><td rowspan="2">Общее</td><td>Зуммер</td><td>13</td><td></td></tr>
-<tr><td>Кнопка «Подтвердить»</td><td>14</td><td>на GND, INPUT_PULLUP</td></tr>
+<tr><td>Кнопка «Сброс»</td><td><span class="bad">4 → 2</span></td><td>на GND, INPUT_PULLUP; 4 теперь DC экрана</td></tr>
+<tr><td rowspan="5">Общая система</td><td>Зуммер (активный)</td><td>25</td><td></td></tr>
+<tr><td>RGB R</td><td>26</td><td rowspan="3">общий катод: HIGH = горит</td></tr>
+<tr><td>RGB G</td><td>27</td></tr>
+<tr><td>RGB B</td><td>14</td></tr>
+<tr><td>Кнопка «Подтвердить»</td><td>32</td><td>на GND, INPUT_PULLUP</td></tr>
 </table></div>
 <p>Питание: 3V3 — ESP32, TFT, DHT22, DS18B20, BMP180, MPU6050, переключатели, MQ2 (в Wokwi). 5V — серво, реле. GND общий.</p>
-<p>Выводы №2 заняли освободившиеся от №6 (15, 34, 35, 4) плюс 2 и 19. Свободны: GPIO 0, 12 (strapping-пины), 1/3 (UART, монитор порта).</p><ul>
-<li>RGB-светодиод по кейсу входит в компоненты №2, но показывает общий уровень базы, поэтому его ведёт <code>main.ino</code>, а не класс №2. Только <code>digitalWrite</code>, без ШИМ: жёлтый = R + G. Цвет дублируется на экране.</li><li>Двери на 36/39: подтяжки внутри нет, поэтому переключатель должен давать чёткий 0 или 1 (в Wokwi slide switch: средний вывод на GPIO, крайние на 3V3 и GND).</li>
+<p>Предложение по переносу: №1 и «Сброс» №2 переезжают на выводы, освобождённые общей системой (16, 13, 2, 19) и RST экрана (17 — если RST подключить к EN или 3V3). После переноса свободны: GPIO 0, 12 (strapping-пины), 1/3 (UART, монитор порта).</p><ul>
+<li>RGB-светодиод по кейсу входит в компоненты №2, но показывает общий уровень базы, поэтому его ведёт <code>main.ino</code>, а не класс №2. Только <code>digitalWrite</code>, без ШИМ: жёлтый = R + G, синий канал по кейсу не нужен (можно использовать для «Подтверждено»). Цвет дублируется на экране.</li><li>Двери на 36/39: подтяжки внутри нет, поэтому переключатель должен давать чёткий 0 или 1 (в Wokwi slide switch: средний вывод на GPIO, крайние на 3V3 и GND).</li>
 </ul>
+
+<h3>Библиотеки</h3>
+<p><code>SPI</code>, <code>Wire</code>, <code>Adafruit_GFX</code>, <code>Adafruit_ILI9341</code>, <code>U8g2_for_Adafruit_GFX</code> (кириллица), <code>DHT</code>, <code>OneWire</code>, <code>DallasTemperature</code>, <code>Adafruit_BMP085</code> (подходит для BMP180), <code>Adafruit_MPU6050</code>, <code>Adafruit_Sensor</code>, <code>ESP32Servo</code>. Список для Wokwi — <code>wokwi/main/libraries.txt</code>.</p>
 
 <h2>5. Наши трактовки кейса</h2>
 <ul>
@@ -146,6 +149,7 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 <p>Сменился порог — правим блок подсистемы в начале <code>common.h</code> и раздел 3. Сменился пин — правим раздел 4, <code>diagram.json</code> и конфиг в <code>main.ino</code>; файлы подсистемы не трогаем. Нужен общий код в двух подсистемах — переносим его в <code>common.h</code>, а не копируем.</p>
 
 <h2>8. Открытые вопросы</h2>
+<div class="box q"><b>Перенос пинов №1 и «Сброс» №2.</b> Новые пины общей системы заняли выводы №1 (25, 26, 27, 32) и «Сброс» №2 (4). Предложение в таблице раздела 4; подтвердить и обновить <code>diagram.json</code> и <code>main.ino</code>. RST экрана — на EN/3V3 или оставить на 17?</div>
 <div class="box q"><b>Журнал на microSD.</b> Только монитор порта или ещё карта?</div>
 <div class="box q"><b>Сколько держится АВАРИЯ №4 после сильного удара.</b> В кейсе не сказано: удар мгновенный, а «красная индикация остаётся, пока причина не устранена». Варианты: 30 с (как ВНИМАНИЕ в №3) или до нажатия «Подтвердить».</div>
 <div class="box q"><b>Новый сильный удар во время АВАРИИ №4.</b> По кейсу «новая авария снова включает звук», но бит удара в <code>alarmMask()</code> уже стоит и не меняется — звук после «Подтвердить» не вернётся. Нужен способ отметить новую аварию того же параметра.</div>
