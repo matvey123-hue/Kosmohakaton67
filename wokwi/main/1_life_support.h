@@ -38,9 +38,11 @@ public:
   void        begin() override;
   void        update(uint32_t nowMs) override;
   AlarmLevel  level() const override;               // максимум по параметрам
+  // Бит на каждую сторону параметра в АВАРИИ: биты 0–2 — ниже нормы (холод, сухость, обшивка),
+  // биты 3–4 — выше (перегрев, сырость). Холод → перегрев — новый бит, значит новая авария.
   uint8_t     alarmMask() const override;
   const char* message() const override;
-  // «воздух 22.0 °C, влажн. 45 %, обшивка -10.0 °C»
+  // «воздух 22.0 °C, влажн. 45.0 %, обшивка -10.0 °C»; датчика без данных в строке нет
   void        valueText(char* buf, size_t n) const override;
 
   // ---- Подробности для пульта ----
@@ -48,19 +50,23 @@ public:
   float       airC() const      { return params[LS_AIR].value; }
   float       humidity() const  { return params[LS_HUM].value; }
   float       hullC() const     { return params[LS_HULL].value; }
-  bool        hasAir() const    { return params[LS_AIR].has; }   // было ли хоть одно показание DHT22
-  bool        hasHull() const   { return params[LS_HULL].has; }  // было ли хоть одно показание DS18B20
+  bool        hasAir() const    { return params[LS_AIR].has; }   // было ли хоть одно показание воздуха
+  bool        hasHull() const   { return params[LS_HULL].has; }  // было ли хоть одно показание обшивки
 
   // ---- Команды исполнителям ----
   bool        heaterOn() const  { return heater; }   // реле обогревателя
   int         damperDeg() const { return damper; }   // угол серво заслонки
 
 private:
-  // Состояние одного параметра: последнее значение и уровень с выдержкой 2 с.
+  // Состояние одного параметра: последнее значение и уровни с выдержкой 2 с — отдельно
+  // для отклонения вниз и вверх. Так гистерезис стоит только у пересечённого порога,
+  // а сторона аварии (холод или перегрев) всегда известна. Вне НОРМЫ — не больше одной
+  // стороны: покинутая держит уровень, пока другая не подтвердит свой.
   struct ParamState {
     float     value = NAN;
     bool      has = false;
-    LevelHold hold;
+    LevelHold low, high;
+    AlarmLevel level() const { return low.level > high.level ? low.level : high.level; }
   };
 
   void readDht(uint32_t nowMs);
@@ -83,7 +89,8 @@ private:
   bool ds18Requested = false;
   DeviceAddress hullAddr;
   bool hullFound = false;
-  bool hullOk = true;        // последнее чтение DS18B20 удалось — для сообщения о пропаже один раз
+  bool hullOk = true;        // последнее чтение удалось — чтобы писать о пропаже датчика один раз
+  bool airOk = true;
   bool shownHeater = false;  // что сейчас выставлено на реле и серво
   int  shownDamper = -1;
 };

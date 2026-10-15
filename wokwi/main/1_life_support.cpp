@@ -1,10 +1,17 @@
 #include "1_life_support.h"
 #include <math.h>
 
-static const Band BANDS[LS_PARAM_COUNT] = {
-  { LS_AIR_ALARM_LO, LS_AIR_WARN_LO, LS_AIR_WARN_HI, LS_AIR_ALARM_HI, LS_AIR_HYST },
-  { LS_HUM_ALARM_LO, LS_HUM_WARN_LO, LS_HUM_WARN_HI, LS_HUM_ALARM_HI, LS_HUM_HYST },
-  { -INFINITY,       LS_HULL_WARN_LO, INFINITY,      INFINITY,        LS_HULL_HYST },
+// Пороги каждого параметра по сторонам: вниз (холод, сухость, переохлаждение обшивки)
+// и вверх (перегрев, сырость). Чужая сторона — ±INFINITY, classify() её не пересечёт.
+static const Band LOW_BANDS[LS_PARAM_COUNT] = {
+  { LS_AIR_ALARM_LO, LS_AIR_WARN_LO,  INFINITY, INFINITY, LS_AIR_HYST },
+  { LS_HUM_ALARM_LO, LS_HUM_WARN_LO,  INFINITY, INFINITY, LS_HUM_HYST },
+  { -INFINITY,       LS_HULL_WARN_LO, INFINITY, INFINITY, LS_HULL_HYST },  // АВАРИИ по обшивке нет
+};
+static const Band HIGH_BANDS[LS_PARAM_COUNT] = {
+  { -INFINITY, -INFINITY, LS_AIR_WARN_HI, LS_AIR_ALARM_HI, LS_AIR_HYST },
+  { -INFINITY, -INFINITY, LS_HUM_WARN_HI, LS_HUM_ALARM_HI, LS_HUM_HYST },
+  { -INFINITY, -INFINITY, INFINITY,       INFINITY,        LS_HULL_HYST },  // сверху у обшивки порогов нет
 };
 
 LifeSupport::LifeSupport(const LifeSupportConfig& cfg)
@@ -35,13 +42,19 @@ void LifeSupport::update(uint32_t nowMs) {
   driveActuators();
 }
 
+// Свежий кадр принудительно (force): у библиотеки свой кэш на 2 с по своим часам, и на
+// границе он вернул бы прошлый кадр как новый — тогда один выброс прошёл бы выдержку 2 с.
+// Чаще раза в 2 с датчик не опрашиваем — это держит update(). Влажность — из того же кадра.
+// Пропал датчик — пишем один раз, пульт показывает последнее значение.
 void LifeSupport::readDht(uint32_t nowMs) {
-  float t = dht.readTemperature();
+  float t = dht.readTemperature(false, true);
   float h = dht.readHumidity();
-  if (isnan(t) || isnan(h)) {
-    Serial.println("№1: DHT22 нет ответа");
-    return;
+  bool ok = !isnan(t) && !isnan(h);
+  if (ok != airOk) {
+    airOk = ok;
+    Serial.println(ok ? "№1: датчик воздуха снова на связи" : "№1: датчик воздуха не отвечает");
   }
+  if (!ok) return;
   updateParam(LS_AIR, t, nowMs);
   updateParam(LS_HUM, h, nowMs);
   updateActuators(t);
@@ -83,12 +96,22 @@ void LifeSupport::driveActuators() {
   }
 }
 
-// Уровень с гистерезисом и выдержкой — общие classify() и LevelHold из common.h.
+// Каждая сторона — своя выдержка и свой гистерезис (общие classify() и LevelHold из common.h).
+// Возврат с запасом действует только у пересечённого порога: после «тепло» 18,5 °C — уже норма.
+// Переход на другую сторону — эстафетой: пока значение там, покинутая сторона держит свой
+// уровень и сбрасывается, только когда новая сторона подтвердит свой. Иначе на 2 с между ними
+// получилась бы ложная НОРМА при значении вне нормы.
 void LifeSupport::updateParam(LsParam i, float v, uint32_t nowMs) {
   ParamState& p = params[i];
   p.value = v;
   p.has = true;
-  p.hold.update(classify(v, BANDS[i], p.hold.level), nowMs);
+  AlarmLevel lo = classify(v, LOW_BANDS[i], p.low.level);
+  AlarmLevel hi = classify(v, HIGH_BANDS[i], p.high.level);
+  AlarmLevel lowWas = p.low.level, highWas = p.high.level;
+  p.low.update(hi != LVL_OK ? p.low.level : lo, nowMs);
+  p.high.update(lo != LVL_OK ? p.high.level : hi, nowMs);
+  if (p.high.level != highWas && p.high.level != LVL_OK) p.low = LevelHold();
+  if (p.low.level != lowWas && p.low.level != LVL_OK) p.high = LevelHold();
 }
 
 // Автореакции по сырому значению, сразу. Зазор между порогами вкл/выкл — свой гистерезис.
@@ -102,23 +125,29 @@ void LifeSupport::updateActuators(float airC) {
 
 AlarmLevel LifeSupport::level() const {
   AlarmLevel lvl = LVL_OK;
-  for (auto& p : params) if (p.hold.level > lvl) lvl = p.hold.level;
+  for (auto& p : params) if (p.level() > lvl) lvl = p.level();
   return lvl;
 }
 
-AlarmLevel LifeSupport::paramLevel(LsParam p) const { return params[p].hold.level; }
+AlarmLevel LifeSupport::paramLevel(LsParam p) const { return params[p].level(); }
 
 uint8_t LifeSupport::alarmMask() const {
   uint8_t m = 0;
-  for (uint8_t i = 0; i < LS_PARAM_COUNT; i++)
-    if (params[i].hold.level == LVL_ALARM) m |= 1 << i;
+  for (uint8_t i = 0; i < LS_PARAM_COUNT; i++) {
+    if (params[i].low.level == LVL_ALARM) m |= 1 << i;
+    if (params[i].high.level == LVL_ALARM) m |= 1 << (i + LS_PARAM_COUNT);
+  }
   return m;
 }
 
+// Каждый датчик — своей частью строки: молчит воздух — обшивка всё равно в журнале.
 void LifeSupport::valueText(char* buf, size_t n) const {
-  if (!hasAir()) snprintf(buf, n, "нет данных");
-  else if (!hasHull()) snprintf(buf, n, "воздух %.1f °C, влажн. %.0f %%", airC(), humidity());
-  else snprintf(buf, n, "воздух %.1f °C, влажн. %.0f %%, обшивка %.1f °C", airC(), humidity(), hullC());
+  int len = 0;
+  buf[0] = '\0';
+  if (hasAir()) len = snprintf(buf, n, "воздух %.1f °C, влажн. %.1f %%", airC(), humidity());
+  if (hasHull() && len >= 0 && (size_t)len < n)
+    snprintf(buf + len, n - len, "%sобшивка %.1f °C", len ? ", " : "", hullC());
+  if (!hasAir() && !hasHull()) snprintf(buf, n, "нет данных");
 }
 
 const char* LifeSupport::message() const {
@@ -126,13 +155,16 @@ const char* LifeSupport::message() const {
   AlarmLevel worst = level();
   if (worst == LVL_OK) return nullptr;
   for (uint8_t i = 0; i < LS_PARAM_COUNT; i++) {
-    if (params[i].hold.level != worst) continue;
-    // Сторона отклонения — относительно середины нормы: из-за гистерезиса значение
-    // уже может быть внутри нормы, а уровень ещё держится.
-    bool low = params[i].value < (BANDS[i].warnLo + BANDS[i].warnHi) / 2;
+    const ParamState& p = params[i];
+    if (p.level() != worst) continue;
+    // Сторона — та, на которой подтверждён уровень: вне нормы всегда только одна (эстафета в updateParam).
+    bool low = p.low.level != LVL_OK;
     switch (i) {
       case LS_AIR:
-        if (worst == LVL_ALARM) return low ? "Холодно! Обогрев включён" : "Перегрев! Заслонка открыта";
+        // Исполнитель упоминаем, только если он и правда в этом состоянии: на выдержке
+        // после возврата значения в норму уровень ещё держится, а обогрев уже выключен.
+        if (worst == LVL_ALARM && low) return heater ? "Холодно! Обогрев включён" : "Холодно в модуле";
+        if (worst == LVL_ALARM) return damper == LS_DAMPER_OPEN_DEG ? "Перегрев! Заслонка открыта" : "Перегрев в модуле";
         return low ? "Воздух прохладный" : "Воздух тёплый";
       case LS_HUM:
         if (worst == LVL_ALARM) return low ? "Воздух очень сухой" : "Влажность критическая";
