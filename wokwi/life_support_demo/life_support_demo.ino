@@ -176,7 +176,7 @@ void drawStatic() {
   }
   u8g2.setForegroundColor(ILI9341_DARKGREY);
   u8g2.setCursor(8, 234);
-  u8g2.print("Клик по датчику — ползунки");
+  u8g2.print("Клик по датчику: ползунки");
 }
 
 void drawDynamic(uint32_t now) {
@@ -219,9 +219,14 @@ void drawDynamic(uint32_t now) {
   snprintf(buf, sizeof buf, "%d° (%s)", lifeDamperDeg(), lifeDamperDeg() ? "открыта" : "закрыта");
   drawValue(188, buf, lifeDamperDeg() ? ILI9341_CYAN : ILI9341_WHITE);
 
-  // Сообщение пульта.
-  tft.fillRect(0, 196, 320, 20, ILI9341_BLACK);
+  // Сообщение пульта: перерисовываем только при смене, иначе строка мерцает.
+  static const char* shownMsg = "";
+  static AlarmLevel  shownLvl = LVL_OK;
   const char* msg = lifeMessage();
+  if (msg == shownMsg && lvl == shownLvl) return;
+  shownMsg = msg;
+  shownLvl = lvl;
+  tft.fillRect(0, 196, 320, 20, ILI9341_BLACK);
   if (msg) {
     u8g2.setForegroundColor(lvl == LVL_ALARM ? ILI9341_RED : ILI9341_YELLOW);
     u8g2.setCursor(8, 212);
