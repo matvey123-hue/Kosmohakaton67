@@ -12,7 +12,7 @@
 spec.html            спека
 wokwi/main/          проект Wokwi целиком, без подпапок
   main.ino           пины, общие части (журнал, пульт, звук), связи подсистем
-  common.h           AlarmLevel, интерфейс Subsystem, общие константы
+  common.h           все пороги, AlarmLevel, интерфейс Subsystem, утилиты
   1_life_support.*   №1 Жизнеобеспечение
   2_fire.*           №2 Пожарная безопасность
   3_airlock.*        №3 Шлюз и герметичность

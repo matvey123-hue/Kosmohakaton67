@@ -1,12 +1,6 @@
 #include "1_life_support.h"
 #include <math.h>
 
-// Границы одного параметра. Нет границы — ±INFINITY.
-struct Band {
-  float alarmLo, warnLo, warnHi, alarmHi;
-  float hyst;
-};
-
 static const Band BANDS[LS_PARAM_COUNT] = {
   { LS_AIR_ALARM_LO, LS_AIR_WARN_LO, LS_AIR_WARN_HI, LS_AIR_ALARM_HI, LS_AIR_HYST },
   { LS_HUM_ALARM_LO, LS_HUM_WARN_LO, LS_HUM_WARN_HI, LS_HUM_ALARM_HI, LS_HUM_HYST },
@@ -15,9 +9,7 @@ static const Band BANDS[LS_PARAM_COUNT] = {
 
 LifeSupport::LifeSupport(const LifeSupportConfig& cfg)
     : cfg(cfg), dht(cfg.pinAir, cfg.airSensorType), oneWire(cfg.pinHull), ds18(&oneWire),
-      heater(false), damper(LS_DAMPER_CLOSED_DEG) {
-  for (auto& p : params) p = { NAN, false, LVL_OK, LVL_OK, 0 };
-}
+      heater(false), damper(LS_DAMPER_CLOSED_DEG) {}
 
 void LifeSupport::begin() {
   pinMode(cfg.pinHeater, OUTPUT);
@@ -91,32 +83,12 @@ void LifeSupport::driveActuators() {
   }
 }
 
-// Уровень по значению. Гистерезис: пока параметр на уровне cur, граница этого уровня
-// сдвинута внутрь нормы на hyst, поэтому дребезг около порога не меняет уровень туда-обратно.
-static AlarmLevel classify(float v, const Band& b, AlarmLevel cur) {
-  float a = cur == LVL_ALARM ? b.hyst : 0;
-  if (v < b.alarmLo + a || v > b.alarmHi - a) return LVL_ALARM;
-  float w = cur >= LVL_WARN ? b.hyst : 0;
-  if (v < b.warnLo + w || v > b.warnHi - w) return LVL_WARN;
-  return LVL_OK;
-}
-
-// Ложные тревоги: уровень меняется, только если новое значение держится HOLD_MS.
+// Уровень с гистерезисом и выдержкой — общие classify() и LevelHold из common.h.
 void LifeSupport::updateParam(LsParam i, float v, uint32_t nowMs) {
   ParamState& p = params[i];
   p.value = v;
   p.has = true;
-  AlarmLevel raw = classify(v, BANDS[i], p.level);
-  if (raw == p.level) {
-    p.candidate = p.level;
-    return;
-  }
-  if (raw != p.candidate) {
-    p.candidate = raw;
-    p.candidateSinceMs = nowMs;
-  } else if (nowMs - p.candidateSinceMs >= HOLD_MS) {
-    p.level = raw;
-  }
+  p.hold.update(classify(v, BANDS[i], p.hold.level), nowMs);
 }
 
 // Автореакции по сырому значению, сразу. Зазор между порогами вкл/выкл — свой гистерезис.
@@ -130,16 +102,16 @@ void LifeSupport::updateActuators(float airC) {
 
 AlarmLevel LifeSupport::level() const {
   AlarmLevel lvl = LVL_OK;
-  for (auto& p : params) if (p.level > lvl) lvl = p.level;
+  for (auto& p : params) if (p.hold.level > lvl) lvl = p.hold.level;
   return lvl;
 }
 
-AlarmLevel LifeSupport::paramLevel(LsParam p) const { return params[p].level; }
+AlarmLevel LifeSupport::paramLevel(LsParam p) const { return params[p].hold.level; }
 
 uint8_t LifeSupport::alarmMask() const {
   uint8_t m = 0;
   for (uint8_t i = 0; i < LS_PARAM_COUNT; i++)
-    if (params[i].level == LVL_ALARM) m |= 1 << i;
+    if (params[i].hold.level == LVL_ALARM) m |= 1 << i;
   return m;
 }
 
@@ -154,7 +126,7 @@ const char* LifeSupport::message() const {
   AlarmLevel worst = level();
   if (worst == LVL_OK) return nullptr;
   for (uint8_t i = 0; i < LS_PARAM_COUNT; i++) {
-    if (params[i].level != worst) continue;
+    if (params[i].hold.level != worst) continue;
     // Сторона отклонения — относительно середины нормы: из-за гистерезиса значение
     // уже может быть внутри нормы, а уровень ещё держится.
     bool low = params[i].value < (BANDS[i].warnLo + BANDS[i].warnHi) / 2;

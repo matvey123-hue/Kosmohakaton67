@@ -9,30 +9,7 @@
 #include <ESP32Servo.h>
 #include "common.h"
 
-// ---- Пороги (по спеке, раздел «Подсистемы») ----
-// Воздух, °C: НОРМА 18–26, ВНИМАНИЕ 15–18 или 26–30, АВАРИЯ < 15 или > 30.
-const float LS_AIR_ALARM_LO  = 15.0f;
-const float LS_AIR_WARN_LO   = 18.0f;
-const float LS_AIR_WARN_HI   = 26.0f;
-const float LS_AIR_ALARM_HI  = 30.0f;
-const float LS_AIR_HYST      = 1.0f;    // возврат на уровень ниже — только с запасом 1 °C
-// Влажность, %: НОРМА 30–60, ВНИМАНИЕ 20–30 или 60–80, АВАРИЯ < 20 или > 80.
-const float LS_HUM_ALARM_LO  = 20.0f;
-const float LS_HUM_WARN_LO   = 30.0f;
-const float LS_HUM_WARN_HI   = 60.0f;
-const float LS_HUM_ALARM_HI  = 80.0f;
-const float LS_HUM_HYST      = 2.0f;
-// Обшивка, °C: ВНИМАНИЕ ниже −30, АВАРИИ по обшивке в кейсе нет.
-const float LS_HULL_WARN_LO  = -30.0f;
-const float LS_HULL_HYST     = 1.0f;
-
-// ---- Автореакции (срабатывают сразу, без выдержки) ----
-const float LS_HEATER_ON_BELOW   = 18.0f;  // обогрев вкл при t < 18
-const float LS_HEATER_OFF_FROM   = 20.0f;  // выкл при t ≥ 20
-const float LS_DAMPER_OPEN_ABOVE = 26.0f;  // заслонка 90° при t > 26
-const float LS_DAMPER_CLOSE_TO   = 24.0f;  // 0° при t ≤ 24
-const int   LS_DAMPER_OPEN_DEG   = 90;
-const int   LS_DAMPER_CLOSED_DEG = 0;
+// Пороги и автореакции — в common.h (кейс: «пороги в одном месте»).
 
 // Параметры подсистемы, у каждого своя цветная метка на пульте.
 enum LsParam : uint8_t { LS_AIR, LS_HUM, LS_HULL, LS_PARAM_COUNT };
@@ -79,13 +56,11 @@ public:
   int         damperDeg() const { return damper; }   // угол серво заслонки
 
 private:
-  // Состояние одного параметра: подтверждённый уровень и кандидат, который ждёт 2 с.
+  // Состояние одного параметра: последнее значение и уровень с выдержкой 2 с.
   struct ParamState {
-    float      value;
-    bool       has;
-    AlarmLevel level;       // показываем на пульте
-    AlarmLevel candidate;   // новый уровень, ещё не продержавшийся HOLD_MS
-    uint32_t   candidateSinceMs;
+    float     value = NAN;
+    bool      has = false;
+    LevelHold hold;
   };
 
   void readDht(uint32_t nowMs);

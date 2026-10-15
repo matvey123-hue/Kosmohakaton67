@@ -76,7 +76,7 @@
 
     [ "mq2:VCC", "esp:3V3", "red", [] ],
     [ "mq2:GND", "esp:GND.1", "black", [] ],
-    [ "mq2:AO", "esp:34", "gray", [] ],
+    [ "mq2:AOUT", "esp:34", "gray", [] ],
     [ "ntc:VCC", "esp:3V3", "red", [] ],
     [ "ntc:GND", "esp:GND.1", "black", [] ],
     [ "ntc:OUT", "esp:35", "gold", [] ],
