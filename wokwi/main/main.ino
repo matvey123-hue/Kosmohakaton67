@@ -208,7 +208,7 @@ uint16_t levelColor(AlarmLevel lvl) {
 // Строка экрана шрифтом 6x12: что на ней сейчас нарисовано.
 struct ScreenRow {
   int      y;          // базовая линия текста
-  char     text[64];
+  char     text[128];  // кириллица — 2 байта на букву
   uint16_t color;      // цвет текста
   uint16_t mark;       // цвет метки уровня слева, COL_BLACK — без метки
 };
@@ -238,9 +238,16 @@ void drawRow(ScreenRow& row, const char* text, uint16_t color, uint16_t mark = C
 }
 
 void drawSubsystemRow(int i, const char* tag, AlarmLevel lvl, const char* value) {
-  char text[64];
+  char text[128];
   snprintf(text, sizeof text, "%s: %s", tag, value);
   drawRow(rows[ROW_SUBS + i], text, COL_WHITE, levelColor(lvl));
+}
+
+// setFont() в U8g2_for_Adafruit_GFX сбрасывает режим на «с фоном» (фон по умолчанию
+// чёрный): на жёлтой плашке буквы превращались в чёрные прямоугольники.
+void useFont(const uint8_t* font) {
+  u8g.setFont(font);
+  u8g.setFontMode(1);  // прозрачный фон шрифта
 }
 
 const char* doorText(bool open) { return open ? "О" : "З"; }
@@ -257,16 +264,16 @@ void updateScreen(AlarmLevel base, uint32_t nowMs) {
   if (banner != bannerDrawn) {
     bannerDrawn = banner;
     tft.fillRect(0, 0, 320, 44, blinkOff ? COL_BLACK : levelColor(base));
-    u8g.setFont(u8g2_font_10x20_t_cyrillic);
+    useFont(u8g2_font_10x20_t_cyrillic);
     u8g.setForegroundColor(blinkOff ? levelColor(base) : COL_BLACK);
     u8g.setCursor(8, 30);
     u8g.print("БАЗА: ");
     u8g.print(levelName(base));
   }
 
-  u8g.setFont(u8g2_font_6x12_t_cyrillic);
+  useFont(u8g2_font_6x12_t_cyrillic);
 
-  char line[64];
+  char line[128];  // кириллица — 2 байта на букву: в 64 байта строка реле не влезала
   // Строка подсистемы: уровень + ключевое значение (свои короткие форматы:
   // valueText() идёт в журнал, а на экране нет «№» и «°»).
   if (life.hasAir())
