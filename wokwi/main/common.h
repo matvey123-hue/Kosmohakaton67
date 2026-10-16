@@ -38,8 +38,17 @@ const int   LS_DAMPER_CLOSED_DEG = 0;
 // ВНИМАНИЕ: только один признак — дым выше порога ИЛИ t > 45 °C.
 // АВАРИЯ: оба признака дольше 2 с, или t > 60 °C. Всплеск короче 1 с АВАРИЮ не даёт.
 const int   FIRE_SMOKE_ADC    = 2000;   // порог дыма по АЦП MQ2 (0–4095) — открытый вопрос, спека раздел 8
+const int   FIRE_SMOKE_HYST_ADC = 150;  // гистерезис дыма: назад — только ниже порога на это
 const float FIRE_TEMP_WARN_C  = 45.0f;
 const float FIRE_TEMP_ALARM_C = 60.0f;
+const float FIRE_TEMP_HYST_C  = 2.0f;   // гистерезис температуры, °C
+const uint32_t FIRE_READ_MS  = 200;     // опрос MQ2 и NTC чаще не нужно: оба медленные
+const uint32_t FIRE_BUTTON_DEBOUNCE_MS = 50;  // дребезг кнопки «Сброс»
+// NTC в Wokwi: делитель 10 кОм + 10 кОм NTC (бета 3950), формула из доков Wokwi,
+// но под АЦП ESP32 (0–4095, а не 0–1023).
+const float FIRE_NTC_BETA_C   = 3950.0f;
+const float FIRE_NTC_RNOM_OHM = 10000.0f;  // сопротивление NTC при +25 °C
+const int   FIRE_ADC_MAX      = 4095;
 // Автореакция: при АВАРИИ реле питания отсека размыкается, обратно — кнопкой «Сброс» после НОРМЫ.
 
 // ---- №3 Шлюз и герметичность ----
@@ -48,9 +57,12 @@ const float FIRE_TEMP_ALARM_C = 60.0f;
 // АВАРИЯ: давление < 90 кПа, или обе двери открыты.
 const float    AIRLOCK_WARN_KPA       = 95.0f;
 const float    AIRLOCK_ALARM_KPA      = 90.0f;
+const float    AIRLOCK_PRESS_HYST_KPA = 1.0f;  // гистерезис давления при возврате
 const float    AIRLOCK_DROP_KPA       = 2.0f;
 const uint32_t AIRLOCK_DROP_WINDOW_MS = 10000;
 const uint32_t AIRLOCK_IMPACT_WARN_MS = 30000;  // ВНИМАНИЕ после сильного удара в №4
+const uint32_t AIRLOCK_READ_MS        = 1000;   // опрос BMP180 и дверей чаще не нужно
+const uint32_t AIRLOCK_DOOR_DEBOUNCE_MS = 50;   // дребезг концевиков дверей
 // Автореакция: внешняя дверь открыта — замок внутренней закрыт.
 const int      AIRLOCK_LOCK_CLOSED_DEG = 0;
 const int      AIRLOCK_LOCK_OPEN_DEG   = 90;
@@ -61,6 +73,11 @@ const float    METEOR_WEAK_G          = 1.3f;
 const float    METEOR_STRONG_G        = 1.8f;
 const int      METEOR_WEAK_COUNT      = 3;
 const uint32_t METEOR_WEAK_WINDOW_MS  = 60000;
+const uint32_t METEOR_READ_MS         = 100;    // опрос MPU6050: удар короткий, читаем часто
+const int      METEOR_CONFIRM_READS   = 2;      // пик подтверждаем N отсчётами подряд
+const uint32_t METEOR_COOLDOWN_MS     = 1500;   // пауза после пика: один удар считается один раз
+const uint32_t METEOR_ALARM_HOLD_MS   = 30000;  // сколько держится АВАРИЯ после сильного удара
+const int      METEOR_WEAK_STORE      = 10;     // сколько слабых ударов помним для окна 60 с
 // Автореакция: при АВАРИИ — «Проверить герметичность» на пульте и сигнал в №3.
 
 // ======== Уровни тревоги, интерфейс подсистемы, утилиты ========
