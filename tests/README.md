@@ -1,16 +1,16 @@
 # Юнит-тесты логики подсистем
 
-Прогон без железа: логика подсистем (`wokwi/main/*.cpp`) компилируется
+Прогон без железа: логика подсистем (`wokwi/sketch/*.cpp`) компилируется
 компьютерным g++ с заглушками Arduino (`tests/stubs/`) и тестируется
 сценариями из кейса (пороги, выдержка 2 с, гистерезис, автореакции).
 
 ## Запуск
 
 ```sh
-g++ -std=c++17 -Wall -I tests/stubs -I wokwi/main \
+g++ -std=c++17 -Wall -I tests/stubs -I wokwi/sketch \
   tests/test_all.cpp tests/stubs/stubs.cpp \
-  wokwi/main/1_life_support.cpp wokwi/main/2_fire.cpp \
-  wokwi/main/3_airlock.cpp wokwi/main/4_meteor.cpp \
+  wokwi/sketch/1_life_support.cpp wokwi/sketch/2_fire.cpp \
+  wokwi/sketch/3_airlock.cpp wokwi/sketch/4_meteor.cpp \
   -o tests/test_all
 ./tests/test_all
 ```
@@ -34,6 +34,6 @@ g++ -std=c++17 -Wall -I tests/stubs -I wokwi/main \
 python tools/validate.py
 ```
 
-Сверяет `diagram.json` с распиновкой (спека, раздел 4) и пинами `main.ino`:
+Сверяет `diagram.json` с распиновкой (спека, раздел 4) и пинами `sketch.ino`:
 имена пинов деталей, отсутствие конфликтов GPIO, реле `transistor=pnp`.
 Ожидается `OK`.

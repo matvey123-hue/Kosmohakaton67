@@ -44,7 +44,7 @@ void FireSafety::readSensors() {
 // Кнопка «Сброс» возвращает питание отсека, но только из НОРМЫ:
 // иначе жюри нажмёт её во время пожара и отсек включится обратно.
 // «Сброс» — не подтверждение аварии: она не глушит общий звук, за это отвечает
-// кнопка «Подтвердить» в main.ino.
+// кнопка «Подтвердить» в sketch.ino.
 void FireSafety::readButton(uint32_t nowMs) {
   bool raw = digitalRead(cfg.pinReset) == HIGH;  // true — отпущена
   if (raw != btnLastRaw) {

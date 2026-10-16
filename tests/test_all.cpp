@@ -229,7 +229,7 @@ static void test_meteor_strong_alarm_and_link() {
   удар(m, now, 2.5f);
   CHECK(m.level() == LVL_ALARM);
   CHECK(m.strongTotalCount() == 1);
-  CHECK(m.takeStrongImpact());   // main.ino забирает флаг для №3
+  CHECK(m.takeStrongImpact());   // sketch.ino забирает флаг для №3
   CHECK(!m.takeStrongImpact());  // флаг одноразовый
   uint8_t mask1 = m.alarmMask();
   // Второй сильный удар — новый бит маски (новая авария для звука).

@@ -10,8 +10,8 @@
 
 ```
 spec.html            спека
-wokwi/main/          проект Wokwi целиком, без подпапок
-  main.ino           пины, общие части (журнал, пульт, звук), связи подсистем
+wokwi/sketch/          проект Wokwi целиком, без подпапок
+  sketch.ino           пины, общие части (журнал, пульт, звук), связи подсистем
   common.h           все пороги, AlarmLevel, интерфейс Subsystem, утилиты
   1_life_support.*   №1 Жизнеобеспечение
   2_fire.*           №2 Пожарная безопасность
@@ -21,7 +21,7 @@ wokwi/main/          проект Wokwi целиком, без подпапок
   libraries.txt      библиотеки для онлайн-Wokwi
   wokwi.toml         путь к прошивке для Wokwi в VS Code
 tests/             юнит-тесты логики без железа (см. tests/README.md)
-tools/validate.py  проверка diagram.json против распиновки и main.ino
+tools/validate.py  проверка diagram.json против распиновки и sketch.ino
 BUILD_WOKWI.md     инструкция: как перенести проект на wokwi.com
 ```
 
@@ -40,20 +40,20 @@ python tools/validate.py   # схема: пины, конфликты, реле 
 
 Нужны VS Code с расширением Wokwi и Arduino IDE 2 (в ней есть `arduino-cli`) с ядром esp32.
 
-1. Один раз поставить библиотеки из `wokwi/main/libraries.txt`:
+1. Один раз поставить библиотеки из `wokwi/sketch/libraries.txt`:
    `arduino-cli lib install "<название>"` для каждой строки.
-2. Собрать прошивку в папке `wokwi/main`:
+2. Собрать прошивку в папке `wokwi/sketch`:
    ```
    arduino-cli compile -b esp32:esp32:esp32 --output-dir build .
    ```
    Если `arduino-cli` нет в PATH, он лежит в
    `%LOCALAPPDATA%\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe`.
-3. Открыть папку `wokwi/main` в VS Code, F1 → «Wokwi: Start Simulator».
+3. Открыть папку `wokwi/sketch` в VS Code, F1 → «Wokwi: Start Simulator».
    Показания датчиков меняются кликом по ним во время симуляции.
 
 После правки кода — снова шаг 2 и перезапуск симулятора.
 
 ## Сдача
 
-Проект сдаётся ссылкой на онлайн-Wokwi (wokwi.com): файлы из `wokwi/main/` переносятся туда вручную,
+Проект сдаётся ссылкой на онлайн-Wokwi (wokwi.com): файлы из `wokwi/sketch/` переносятся туда вручную,
 `libraries.txt` подтягивает библиотеки. Срок — 17.10.2026, 15:00 МСК.

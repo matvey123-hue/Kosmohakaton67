@@ -60,7 +60,7 @@ void MeteorShield::finishEpisode(uint32_t nowMs) {
     strongTotal++;
     strongSeq++;
     alarmUntilMs = nowMs + METEOR_ALARM_HOLD_MS;
-    strongPending = true;  // main.ino заберёт и передаст в №3
+    strongPending = true;  // sketch.ino заберёт и передаст в №3
     Serial.printf("№4: СИЛЬНЫЙ удар %.2f g (всего %lu)\r\n",
                   (double)episodePeak, (unsigned long)strongTotal);
   } else {
@@ -102,7 +102,7 @@ AlarmLevel MeteorShield::level() const {
 uint8_t MeteorShield::alarmMask() const {
   if (level() != LVL_ALARM) return 0;
   // Бит крутится по счётчику сильных ударов: новый удар — новый бит,
-  // и main.ino понимает, что это новая авария, а не продолжение старой.
+  // и sketch.ino понимает, что это новая авария, а не продолжение старой.
   return 1 << (strongSeq % 8);
 }
 

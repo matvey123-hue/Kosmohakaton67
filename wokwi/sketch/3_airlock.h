@@ -3,15 +3,15 @@
 // Класс владеет своим железом: читает две двери и BMP180 (давление),
 // считает уровень тревоги и сам управляет серво замка внутренней двери.
 // Сигнал сильного удара из №4 принимает методом notifyStrongImpact() —
-// его вызывает main.ino, сами подсистемы друг друга не знают.
-// Про схему (diagram.json) он ничего не знает: пины передаёт main.ino в AirlockConfig.
+// его вызывает sketch.ino, сами подсистемы друг друга не знают.
+// Про схему (diagram.json) он ничего не знает: пины передаёт sketch.ino в AirlockConfig.
 #include <Adafruit_BMP085.h>
 #include <ESP32Servo.h>
 #include "common.h"
 
 // Пороги — в common.h (кейс: «пороги в одном месте»).
 
-// Подключение железа подсистемы — заполняет main.ino по схеме.
+// Подключение железа подсистемы — заполняет sketch.ino по схеме.
 struct AirlockConfig {
   int pinDoorOuter;  // внешняя дверь: концевик на GND, INPUT_PULLUP
   int pinDoorInner;  // внутренняя дверь: у GPIO 34–39 нет подтяжки,
@@ -36,7 +36,7 @@ public:
   // «давл. 101.3 кПа, внеш. закр, внутр. закр»
   void        valueText(char* buf, size_t n) const override;
 
-  // ---- Связь с №4 (вызывает main.ino) ----
+  // ---- Связь с №4 (вызывает sketch.ino) ----
   // Сильный удар (> 1,8 g): уровень подсистемы поднимается до ВНИМАНИЯ на 30 с.
   void notifyStrongImpact(uint32_t nowMs) { impactUntilMs = nowMs + AIRLOCK_IMPACT_WARN_MS; }
 

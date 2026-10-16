@@ -2,16 +2,16 @@
 // Подсистема №4 — метеоритная защита.
 // Класс владеет своим железом: читает MPU6050 (модуль ускорения),
 // считает удары и ведёт их счётчик. Сильный удар наружу отдаёт флагом
-// takeStrongImpact() — его забирает main.ino и передаёт в №3.
-// Про схему (diagram.json) он ничего не знает: адрес MPU передаёт main.ino в конфиге.
+// takeStrongImpact() — его забирает sketch.ino и передаёт в №3.
+// Про схему (diagram.json) он ничего не знает: адрес MPU передаёт sketch.ino в конфиге.
 #include <Adafruit_MPU6050.h>
 #include "common.h"
 
 // Пороги — в common.h (кейс: «пороги в одном месте»).
 
-// Подключение железа подсистемы — заполняет main.ino по схеме.
+// Подключение железа подсистемы — заполняет sketch.ino по схеме.
 struct MeteorShieldConfig {
-  uint8_t i2cAddr = 0x68;  // адрес MPU6050 (AD0 на GND); шину запускает main.ino
+  uint8_t i2cAddr = 0x68;  // адрес MPU6050 (AD0 на GND); шину запускает sketch.ino
 };
 
 class MeteorShield : public Subsystem {
@@ -26,13 +26,13 @@ public:
   // здесь не применяется: удар — миг, его подтверждает серия отсчётов, спека раздел 2).
   AlarmLevel  level() const override;
   // Бит АВАРИИ крутится по счётчику сильных ударов: новый удар — новый бит,
-  // main.ino видит смену маски и снова включает звук (спека, раздел 8).
+  // sketch.ino видит смену маски и снова включает звук (спека, раздел 8).
   uint8_t     alarmMask() const override;
   const char* message() const override;
   // «ударов 5 (слаб. 4, сильн. 1), тек. 1.02 g»
   void        valueText(char* buf, size_t n) const override;
 
-  // ---- Связь с №3 (читает main.ino) ----
+  // ---- Связь с №3 (читает sketch.ino) ----
   // true — один раз на каждый сильный удар; вызов сбрасывает флаг.
   bool takeStrongImpact() { bool s = strongPending; strongPending = false; return s; }
 
@@ -72,6 +72,6 @@ private:
   int      weakInWindow = 0;
 
   uint32_t alarmUntilMs = 0;  // до этого момента — АВАРИЯ после сильного удара
-  bool     strongPending = false;  // новый сильный удар, ещё не забрал main.ino
+  bool     strongPending = false;  // новый сильный удар, ещё не забрал sketch.ino
   uint32_t strongSeq = 0;          // счётчик сильных ударов — крутит бит маски
 };

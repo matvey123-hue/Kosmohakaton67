@@ -2,7 +2,7 @@
 // Подсистема №1 — жизнеобеспечение.
 // Класс владеет своим железом: читает датчики воздуха и обшивки, считает уровень тревоги
 // и сам управляет реле обогрева и серво заслонки. Про схему (diagram.json) он ничего
-// не знает: пины и параметры железа передаёт main.ino в LifeSupportConfig.
+// не знает: пины и параметры железа передаёт sketch.ino в LifeSupportConfig.
 #include <DHT.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -17,7 +17,7 @@ enum LsParam : uint8_t { LS_AIR, LS_HUM, LS_HULL, LS_PARAM_COUNT };
 const uint32_t LS_DHT_READ_MS  = 2000;  // DHT22 чаще раза в 2 с не читают
 const uint32_t LS_DS18_READ_MS = 1000;  // DS18B20: запрос, через секунду забираем результат
 
-// Подключение железа подсистемы — заполняет main.ino по схеме.
+// Подключение железа подсистемы — заполняет sketch.ino по схеме.
 struct LifeSupportConfig {
   int     pinAir;            // DATA датчика воздуха и влажности
   uint8_t airSensorType;     // тип для библиотеки DHT: DHT22, DHT11…

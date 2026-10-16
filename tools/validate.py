@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-# Проверка diagram.json против распиновки (спека, раздел 4) и main.ino.
+# Проверка diagram.json против распиновки (спека, раздел 4) и sketch.ino.
 # Использование: python tools/validate.py
 # Ноль на выходе молчит, неноль — список проблем.
 import json, re, sys, os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAIN = os.path.join(ROOT, "wokwi", "main")
+MAIN = os.path.join(ROOT, "wokwi", "sketch")
 diagram = json.load(open(os.path.join(MAIN, "diagram.json"), encoding="utf-8"))
-ino = open(os.path.join(MAIN, "main.ino"), encoding="utf-8").read()
+ino = open(os.path.join(MAIN, "sketch.ino"), encoding="utf-8").read()
 errors, warnings = [], []
 
 # ---- Имена пинов деталей (по докам Wokwi и board.json плат) ----
@@ -92,7 +92,7 @@ for gpio, users in sorted(gpio_use.items()):
 if wire.get("bmp:SDA") != {"21"} or wire.get("mpu:SDA") != {"21"}:
     pass  # уже проверено в п.2; общая шина I2C разрешена
 
-# 4. Пины из main.ino совпадают с diagram.json.
+# 4. Пины из sketch.ino совпадают с diagram.json.
 # В коде — номера GPIO, в схеме VP/VN вместо 36/39: приводим к именам схемы.
 code_pins = set(re.findall(r"\.pin\w+\s*=\s*(\d+)", ino))
 code_pins |= set(re.findall(r"PIN_\w+\s*=\s*(\d+)", ino))
@@ -100,7 +100,7 @@ code_pins = {{"36": "VP", "39": "VN"}.get(p, p) for p in code_pins}
 diag_gpio = {g for g in gpio_use if re.fullmatch(r"\d+|VP|VN", g)}
 diag_num = {g for g in diag_gpio if re.fullmatch(r"\d+|VP|VN", g)}
 if code_pins != diag_num:
-    errors.append(f"пины main.ino {sorted(code_pins)} != "
+    errors.append(f"пины sketch.ino {sorted(code_pins)} != "
                   f"diagram.json {sorted(diag_num)}")
 if "39" in gpio_use:
     errors.append("в схеме есть esp:39 — такого пина нет, надо esp:VN (GPIO39)")

@@ -101,7 +101,7 @@ inline const char* levelName(AlarmLevel lvl) {
   return "?";
 }
 
-// Что каждая подсистема отдаёт main.ino: через этот интерфейс работают цикл, пульт и журнал.
+// Что каждая подсистема отдаёт sketch.ino: через этот интерфейс работают цикл, пульт и журнал.
 class Subsystem {
 public:
   virtual ~Subsystem() = default;

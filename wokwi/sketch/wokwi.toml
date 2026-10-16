@@ -1,5 +1,5 @@
 [wokwi]
 version = 1
 # Прошивку собирает arduino-cli (команда в README), результат в build/
-firmware = 'build/main.ino.merged.bin'
-elf = 'build/main.ino.elf'
+firmware = 'build/sketch.ino.merged.bin'
+elf = 'build/sketch.ino.elf'
